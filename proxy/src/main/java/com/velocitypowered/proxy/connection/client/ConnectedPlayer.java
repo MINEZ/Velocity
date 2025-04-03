@@ -190,7 +190,7 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
   private @Nullable Locale effectiveLocale;
   private final @Nullable IdentifiedKey playerKey;
   private @Nullable ClientSettingsPacket clientSettingsPacket;
-  private final ChatQueue chatQueue;
+  private volatile ChatQueue chatQueue;
   private final ChatBuilderFactory chatBuilderFactory;
 
   ConnectedPlayer(VelocityServer server, GameProfile profile, MinecraftConnection connection,
@@ -234,6 +234,17 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
 
   public ChatQueue getChatQueue() {
     return chatQueue;
+  }
+
+  /**
+   * Discards any messages still being processed by the {@link ChatQueue}, and creates a fresh state for future packets.
+   * This should be used on server switches, or whenever the client resets its own 'last seen' state.
+   */
+  public void discardChatQueue() {
+    // No need for atomic swap, should only be called from event loop
+    final ChatQueue oldChatQueue = chatQueue;
+    chatQueue = new ChatQueue(this);
+    oldChatQueue.close();
   }
 
   public BundleDelimiterHandler getBundleHandler() {
@@ -1090,8 +1101,14 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
       throw new IllegalStateException("Can only send server links in CONFIGURATION or PLAY protocol");
     }
 
-    connection.write(new ClientboundServerLinksPacket(List.copyOf(links).stream()
-        .map(l -> new ClientboundServerLinksPacket.ServerLink(l, getProtocolVersion())).toList()));
+    connection.write(new ClientboundServerLinksPacket(links.stream()
+        .map(l -> new ClientboundServerLinksPacket.ServerLink(
+            l.getBuiltInType().map(Enum::ordinal).orElse(-1),
+            l.getCustomLabel()
+                .map(c -> new ComponentHolder(getProtocolVersion(), translateMessage(c)))
+                .orElse(null),
+            l.getUrl().toString()))
+        .toList()));
   }
 
   @Override
