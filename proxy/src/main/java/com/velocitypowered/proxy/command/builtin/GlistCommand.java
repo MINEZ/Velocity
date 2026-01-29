@@ -38,7 +38,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.minimessage.translation.Argument;
 
 /**
  * Implements the Velocity default {@code /glist} command.
@@ -112,7 +111,7 @@ public class GlistCommand {
       if (registeredServer.isEmpty()) {
         source.sendMessage(
             CommandMessages.SERVER_DOES_NOT_EXIST
-                    .arguments(Argument.string("server", serverName)));
+                    .arguments(Component.text(serverName)));
         return -1;
       }
       sendServerPlayers(source, registeredServer.get(), false);
@@ -127,8 +126,7 @@ public class GlistCommand {
                   ? "velocity.command.glist-player-singular"
                   : "velocity.command.glist-player-plural"
             ).color(NamedTextColor.YELLOW)
-            .arguments(Argument.component(
-                    "players", Component.text(Integer.toString(online), NamedTextColor.GREEN)));
+            .arguments(Component.text(Integer.toString(online), NamedTextColor.GREEN));
     target.sendMessage(msg.build());
   }
 

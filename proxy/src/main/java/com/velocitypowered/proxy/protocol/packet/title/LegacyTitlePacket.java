@@ -40,19 +40,24 @@ public class LegacyTitlePacket extends GenericTitlePacket {
     ProtocolUtils.writeVarInt(buf, getAction().getAction(version));
 
     switch (getAction()) {
-      case SET_TITLE, SET_SUBTITLE, SET_ACTION_BAR -> {
+      case SET_TITLE:
+      case SET_SUBTITLE:
+      case SET_ACTION_BAR:
         if (component == null) {
           throw new IllegalStateException("No component found for " + getAction());
         }
         component.write(buf);
-      }
-      case SET_TIMES -> {
+        break;
+      case SET_TIMES:
         buf.writeInt(fadeIn);
         buf.writeInt(stay);
         buf.writeInt(fadeOut);
-      }
-      case HIDE, RESET -> {}
-      default -> throw new UnsupportedOperationException("Unknown action " + getAction());
+        break;
+      case HIDE:
+      case RESET:
+        break;
+      default:
+        throw new UnsupportedOperationException("Unknown action " + getAction());
     }
 
   }

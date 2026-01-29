@@ -70,34 +70,33 @@ public final class VelocityCommands {
       maybeCommand = VelocityBrigadierCommandWrapper.wrap(delegate.getCommand(), registrant);
     }
 
-    return switch (delegate) {
-      case LiteralCommandNode<CommandSource> lcn -> {
-        var literalBuilder = shallowCopyAsBuilder(lcn, delegate.getName(), true);
-        literalBuilder.executes(maybeCommand);
-        // we also need to wrap any children
-        for (final CommandNode<CommandSource> child : delegate.getChildren()) {
-          literalBuilder.then(wrap(child, registrant));
-        }
-        if (delegate.getRedirect() != null) {
-          literalBuilder.redirect(wrap(delegate.getRedirect(), registrant));
-        }
-        yield literalBuilder.build();
+    if (delegate instanceof LiteralCommandNode<CommandSource> lcn) {
+      var literalBuilder = shallowCopyAsBuilder(lcn, delegate.getName(), true);
+      literalBuilder.executes(maybeCommand);
+      // we also need to wrap any children
+      for (final CommandNode<CommandSource> child : delegate.getChildren()) {
+        literalBuilder.then(wrap(child, registrant));
       }
-      case VelocityArgumentCommandNode<CommandSource, ?> vacn -> vacn.withCommand(maybeCommand)
-              .withRedirect(delegate.getRedirect() != null ? wrap(delegate.getRedirect(), registrant) : null);
-      case ArgumentCommandNode<CommandSource, ?> node -> {
-        var argBuilder = node.createBuilder().executes(maybeCommand);
-        // we also need to wrap any children
-        for (final CommandNode<CommandSource> child : delegate.getChildren()) {
-          argBuilder.then(wrap(child, registrant));
-        }
-        if (delegate.getRedirect() != null) {
-          argBuilder.redirect(wrap(delegate.getRedirect(), registrant));
-        }
-        yield argBuilder.build();
+      if (delegate.getRedirect() != null) {
+        literalBuilder.redirect(wrap(delegate.getRedirect(), registrant));
       }
-      default -> throw new IllegalArgumentException("Unsupported node type: " + delegate.getClass());
-    };
+      return literalBuilder.build();
+    } else if (delegate instanceof VelocityArgumentCommandNode<CommandSource, ?> vacn) {
+      return vacn.withCommand(maybeCommand)
+          .withRedirect(delegate.getRedirect() != null ? wrap(delegate.getRedirect(), registrant) : null);
+    } else if (delegate instanceof ArgumentCommandNode) {
+      var argBuilder = delegate.createBuilder().executes(maybeCommand);
+      // we also need to wrap any children
+      for (final CommandNode<CommandSource> child : delegate.getChildren()) {
+        argBuilder.then(wrap(child, registrant));
+      }
+      if (delegate.getRedirect() != null) {
+        argBuilder.redirect(wrap(delegate.getRedirect(), registrant));
+      }
+      return argBuilder.build();
+    } else {
+      throw new IllegalArgumentException("Unsupported node type: " + delegate.getClass());
+    }
   }
 
   // Normalization
@@ -134,7 +133,7 @@ public final class VelocityCommands {
     if (nodes.isEmpty()) {
       throw new IllegalArgumentException("Cannot read alias from empty node list");
     }
-    return nodes.getFirst().getNode().getName();
+    return nodes.get(0).getNode().getName();
   }
 
   public static final String ARGS_NODE_NAME = "arguments";

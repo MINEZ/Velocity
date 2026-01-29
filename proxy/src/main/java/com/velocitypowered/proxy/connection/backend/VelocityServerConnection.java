@@ -180,8 +180,9 @@ public class VelocityServerConnection implements MinecraftConnectionAssociation,
       handshake.setServerAddress(createBungeeGuardForwardingAddress(secret));
     } else if (proxyPlayer.getConnection().getType() == ConnectionTypes.LEGACY_FORGE) {
       handshake.setServerAddress(playerVhost + HANDSHAKE_HOSTNAME_TOKEN);
-    } else if (proxyPlayer.getConnection().getType() instanceof ModernForgeConnectionType forgeConnection) {
-      handshake.setServerAddress(playerVhost + forgeConnection.getModernToken());
+    } else if (proxyPlayer.getConnection().getType() instanceof ModernForgeConnectionType) {
+      handshake.setServerAddress(playerVhost + ((ModernForgeConnectionType) proxyPlayer
+              .getConnection().getType()).getModernToken());
     } else {
       handshake.setServerAddress(playerVhost);
     }

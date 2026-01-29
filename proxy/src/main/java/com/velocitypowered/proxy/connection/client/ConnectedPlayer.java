@@ -135,7 +135,6 @@ import net.kyori.adventure.sound.SoundStop;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
-import net.kyori.adventure.text.minimessage.translation.Argument;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.title.Title.Times;
@@ -714,12 +713,12 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
     Component friendlyError;
     if (connectedServer != null && connectedServer.getServerInfo().equals(server.getServerInfo())) {
       friendlyError = Component.translatable("velocity.error.connected-server-error",
-              Argument.string("server", server.getServerInfo().getName()));
+          Component.text(server.getServerInfo().getName()));
     } else {
       logger.error("{}: unable to connect to server {}", this, server.getServerInfo().getName(),
           wrapped);
       friendlyError = Component.translatable("velocity.error.connecting-server-error",
-              Argument.string("server", server.getServerInfo().getName()));
+          Component.text(server.getServerInfo().getName()));
     }
     handleConnectionException(server, null, friendlyError.color(NamedTextColor.RED), safe);
   }
@@ -747,7 +746,7 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
       }
       handleConnectionException(server, disconnectReason,
           Component.translatable("velocity.error.moved-to-new-server", NamedTextColor.RED,
-              Argument.string("server", server.getServerInfo().getName()),
+              Component.text(server.getServerInfo().getName()),
               disconnectReason), safe);
     } else {
       if (this.server.getConfiguration().isLogPlayerConnections()) {
@@ -756,7 +755,7 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
       }
       handleConnectionException(server, disconnectReason,
           Component.translatable("velocity.error.cant-connect", NamedTextColor.RED,
-              Argument.string("server", server.getServerInfo().getName()),
+              Component.text(server.getServerInfo().getName()),
               disconnectReason), safe);
     }
   }
@@ -812,56 +811,61 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
         return;
       }
 
-      switch (event.getResult()) {
-        case DisconnectPlayer res -> disconnect(res.getReasonComponent());
-        case RedirectPlayer res -> createConnectionRequest(res.getServer(), previousConnection).connect()
-                .whenCompleteAsync((status, throwable) -> {
-                  if (throwable != null) {
-                    handleConnectionException(res.getServer(), throwable, true);
-                    return;
-                  }
+      if (event.getResult() instanceof final DisconnectPlayer res) {
+        disconnect(res.getReasonComponent());
+      } else if (event.getResult() instanceof final RedirectPlayer res) {
+        createConnectionRequest(res.getServer(), previousConnection).connect()
+            .whenCompleteAsync((status, throwable) -> {
+              if (throwable != null) {
+                handleConnectionException(res.getServer(), throwable, true);
+                return;
+              }
 
-                  switch (status.getStatus()) {
-                    // Impossible/nonsensical cases
-                    case ALREADY_CONNECTED -> logger.error("{}: already connected to {}", this,
-                            status.getAttemptedConnection().getServerInfo().getName());
-                    case CONNECTION_IN_PROGRESS, CONNECTION_CANCELLED -> {
-                      Component fallbackMsg = res.getMessageComponent();
-                      if (fallbackMsg == null) {
-                        fallbackMsg = friendlyReason;
-                      }
-                      disconnect(status.getReasonComponent().orElse(fallbackMsg));
-                    }
-                    case SERVER_DISCONNECTED -> {
-                      Component reason = status.getReasonComponent()
-                            .orElse(ConnectionMessages.INTERNAL_SERVER_CONNECTION_ERROR);
-                      handleConnectionException(res.getServer(),
-                            DisconnectPacket.create(reason, getProtocolVersion(), connection.getState()),
-                            ((Impl) status).isSafe());
-                    }
-                    case SUCCESS -> {
-                      Component requestedMessage = res.getMessageComponent();
-                      if (requestedMessage == null) {
-                        requestedMessage = friendlyReason;
-                      }
-                      if (requestedMessage != Component.empty()) {
-                        sendMessage(requestedMessage);
-                      }
-                    }
-                    default -> {
-                      // The only remaining value is successful (no need to do anything!)
-                    }
+              switch (status.getStatus()) {
+                // Impossible/nonsensical cases
+                case ALREADY_CONNECTED:
+                  logger.error("{}: already connected to {}", this,
+                      status.getAttemptedConnection().getServerInfo().getName());
+                  break;
+                case CONNECTION_IN_PROGRESS:
+                  // Fatal case
+                case CONNECTION_CANCELLED:
+                  Component fallbackMsg = res.getMessageComponent();
+                  if (fallbackMsg == null) {
+                    fallbackMsg = friendlyReason;
                   }
-                }, connection.eventLoop());
-        case Notify res -> {
-          if (event.kickedDuringServerConnect() && previousConnection != null) {
-            sendMessage(res.getMessageComponent());
-          } else {
-            disconnect(res.getMessageComponent());
-          }
+                  disconnect(status.getReasonComponent().orElse(fallbackMsg));
+                  break;
+                case SERVER_DISCONNECTED:
+                  Component reason = status.getReasonComponent()
+                      .orElse(ConnectionMessages.INTERNAL_SERVER_CONNECTION_ERROR);
+                  handleConnectionException(res.getServer(),
+                      DisconnectPacket.create(reason, getProtocolVersion(), connection.getState()),
+                      ((Impl) status).isSafe());
+                  break;
+                case SUCCESS:
+                  Component requestedMessage = res.getMessageComponent();
+                  if (requestedMessage == null) {
+                    requestedMessage = friendlyReason;
+                  }
+                  if (requestedMessage != Component.empty()) {
+                    sendMessage(requestedMessage);
+                  }
+                  break;
+                default:
+                  // The only remaining value is successful (no need to do anything!)
+                  break;
+              }
+            }, connection.eventLoop());
+      } else if (event.getResult() instanceof final Notify res) {
+        if (event.kickedDuringServerConnect() && previousConnection != null) {
+          sendMessage(res.getMessageComponent());
+        } else {
+          disconnect(res.getMessageComponent());
         }
+      } else {
         // In case someone gets creative, assume we want to disconnect the player.
-        default -> disconnect(friendlyReason);
+        disconnect(friendlyReason);
       }
     }, connection.eventLoop());
   }

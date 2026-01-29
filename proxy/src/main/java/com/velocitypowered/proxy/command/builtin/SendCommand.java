@@ -35,7 +35,6 @@ import java.util.Objects;
 import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.minimessage.translation.Argument;
 
 /**
  * Implements the Velocity default {@code /send} command.
@@ -122,7 +121,7 @@ public class SendCommand {
 
     if (maybeServer.isEmpty()) {
       context.getSource().sendMessage(
-          CommandMessages.SERVER_DOES_NOT_EXIST.arguments(Argument.string("server", serverName))
+          CommandMessages.SERVER_DOES_NOT_EXIST.arguments(Component.text(serverName))
       );
       return 0;
     }
@@ -134,7 +133,7 @@ public class SendCommand {
         && !Objects.equals(player, "all")
         && !Objects.equals(player, "current")) {
       context.getSource().sendMessage(
-          CommandMessages.PLAYER_NOT_FOUND.arguments(Argument.string("player", player))
+          CommandMessages.PLAYER_NOT_FOUND.arguments(Component.text(player))
       );
       return 0;
     }

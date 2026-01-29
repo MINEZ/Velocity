@@ -33,7 +33,6 @@ import net.kyori.adventure.permission.PermissionChecker;
 import net.kyori.adventure.platform.facet.FacetPointers;
 import net.kyori.adventure.platform.facet.FacetPointers.Type;
 import net.kyori.adventure.pointer.Pointers;
-import net.kyori.adventure.pointer.PointersSupplier;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -60,11 +59,11 @@ public final class VelocityConsole extends SimpleTerminalConsole implements Cons
 
   private final VelocityServer server;
   private PermissionFunction permissionFunction = ALWAYS_TRUE;
-  private static final @NotNull PointersSupplier<VelocityConsole> POINTERS = PointersSupplier.<VelocityConsole>builder()
-      .resolving(PermissionChecker.POINTER, VelocityConsole::getPermissionChecker)
-      .resolving(Identity.LOCALE, (console) -> ClosestLocaleMatcher.INSTANCE
+  private final @NotNull Pointers pointers = ConsoleCommandSource.super.pointers().toBuilder()
+      .withDynamic(PermissionChecker.POINTER, this::getPermissionChecker)
+      .withDynamic(Identity.LOCALE, () -> ClosestLocaleMatcher.INSTANCE
           .lookupClosest(Locale.getDefault()))
-      .resolving(FacetPointers.TYPE, (console) -> Type.CONSOLE)
+      .withStatic(FacetPointers.TYPE, Type.CONSOLE)
       .build();
 
   public VelocityConsole(VelocityServer server) {
@@ -154,6 +153,6 @@ public final class VelocityConsole extends SimpleTerminalConsole implements Cons
 
   @Override
   public @NotNull Pointers pointers() {
-    return POINTERS.view(this);
+    return pointers;
   }
 }

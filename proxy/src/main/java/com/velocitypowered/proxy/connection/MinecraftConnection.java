@@ -153,13 +153,13 @@ public class MinecraftConnection extends ChannelInboundHandlerAdapter {
 
       if (msg instanceof MinecraftPacket pkt) {
         if (!pkt.handle(activeSessionHandler)) {
-          activeSessionHandler.handleGeneric(pkt);
+          activeSessionHandler.handleGeneric((MinecraftPacket) msg);
         }
       } else if (msg instanceof HAProxyMessage proxyMessage) {
         this.remoteAddress = new InetSocketAddress(proxyMessage.sourceAddress(),
             proxyMessage.sourcePort());
-      } else if (msg instanceof ByteBuf buf) {
-        activeSessionHandler.handleUnknown(buf);
+      } else if (msg instanceof ByteBuf) {
+        activeSessionHandler.handleUnknown((ByteBuf) msg);
       }
     } finally {
       ReferenceCountUtil.release(msg);

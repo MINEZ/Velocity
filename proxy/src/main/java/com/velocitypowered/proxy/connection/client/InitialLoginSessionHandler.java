@@ -242,12 +242,6 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
         // 网易版新增以下 2 行
       }
 
-      final HttpRequest httpRequest = HttpRequest.newBuilder()
-              .setHeader("User-Agent",
-                      server.getVersion().getName() + "/" + server.getVersion().getVersion())
-              .uri(URI.create(url))
-              .build();
-      //noinspection resource
       final HttpClient httpClient = server.createHttpClient();
       httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
           .whenCompleteAsync((response, throwable) -> {
@@ -314,12 +308,14 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
             }
           }, mcConnection.eventLoop())
           .thenRun(() -> {
-            try {
-              httpClient.close();
-            } catch (Exception e) {
-              // In Java 21, the HttpClient does not throw any Exception
-              // when trying to clean its resources, so this should not happen
-              logger.error("An unknown error occurred while trying to close an HttpClient", e);
+            if (httpClient instanceof final AutoCloseable closeable) {
+              try {
+                closeable.close();
+              } catch (Exception e) {
+                // In Java 21, the HttpClient does not throw any Exception
+                // when trying to clean its resources, so this should not happen
+                logger.error("An unknown error occurred while trying to close an HttpClient", e);
+              }
             }
           });
     } catch (GeneralSecurityException e) {
