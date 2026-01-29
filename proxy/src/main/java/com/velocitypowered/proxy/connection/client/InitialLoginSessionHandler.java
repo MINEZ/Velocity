@@ -242,12 +242,6 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
         // 网易版新增以下 2 行
       }
 
-      final HttpRequest httpRequest = HttpRequest.newBuilder()
-              .setHeader("User-Agent",
-                      server.getVersion().getName() + "/" + server.getVersion().getVersion())
-              .uri(URI.create(url))
-              .build();
-      //noinspection resource
       final HttpClient httpClient = server.createHttpClient();
       httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
           .whenCompleteAsync((response, throwable) -> {
