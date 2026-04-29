@@ -39,6 +39,7 @@ import net.kyori.adventure.sound.SoundStop;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.event.HoverEventSource;
+import net.kyori.adventure.text.object.PlayerHeadObjectContents;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.jetbrains.annotations.NotNull;
 
@@ -49,7 +50,8 @@ public interface Player extends
     /* Fundamental Velocity interfaces */
     CommandSource, InboundConnection, ChannelMessageSource, ChannelMessageSink,
     /* Adventure-specific interfaces */
-    Identified, HoverEventSource<HoverEvent.ShowEntity>, Keyed, KeyIdentifiable, Sound.Emitter {
+    Identified, HoverEventSource<HoverEvent.ShowEntity>, Keyed, KeyIdentifiable, Sound.Emitter,
+    PlayerHeadObjectContents.SkinSource {
 
   /**
    * Returns the player's current username.
@@ -150,8 +152,6 @@ public interface Player extends
 
   /**
    * Returns the player's game profile.
-   *
-   * @return the player's profile
    */
   GameProfile getGameProfile();
 
@@ -244,10 +244,10 @@ public interface Player extends
    * Gets the {@link ResourcePackInfo} of the currently applied
    * resource-pack or null if none.
    *
-   * <p>Note that since 1.20.3 it is no longer recommended to use
+   * <p> Note that since 1.20.3 it is no longer recommended to use
    * this method as it will only return the last applied
    * resource pack. To get all applied resource packs, use
-   * {@link #getAppliedResourcePacks()} instead.</p>
+   * {@link #getAppliedResourcePacks()} instead. </p>
    *
    * @return the applied resource pack or null if none.
    */
@@ -260,10 +260,10 @@ public interface Player extends
    * the user is currently downloading or is currently
    * prompted to install or null if none.
    *
-   * <p>Note that since 1.20.3 it is no longer recommended to use
+   * <p> Note that since 1.20.3 it is no longer recommended to use
    * this method as it will only return the last pending
    * resource pack. To get all pending resource packs, use
-   * {@link #getPendingResourcePacks()} instead.</p>
+   * {@link #getPendingResourcePacks()} instead. </p>
    *
    * @return the pending resource pack or null if none
    */
@@ -315,7 +315,6 @@ public interface Player extends
 
   /**
    * {@inheritDoc}
-   *
    * <p><strong>Note that this method does not send a plugin message to the server the player
    * is connected to.</strong> You should only use this method if you are trying to communicate
    * with a mod that is installed on the player's client.</p>
@@ -337,6 +336,16 @@ public interface Player extends
           @NotNull UnaryOperator<HoverEvent.ShowEntity> op) {
     return HoverEvent.showEntity(op.apply(HoverEvent.ShowEntity.showEntity(this, getUniqueId(),
             Component.text(getUsername()))));
+  }
+
+  @SuppressWarnings("UnstableApiUsage") // permitted implementation
+  @Override
+  default void applySkinToPlayerHeadContents(
+      final PlayerHeadObjectContents.@NotNull Builder builder) {
+    builder.skin(this.getGameProfile());
+    if (this.hasSentPlayerSettings()) {
+      builder.hat(this.getPlayerSettings().getSkinParts().hasHat());
+    }
   }
 
   /**
@@ -386,11 +395,12 @@ public interface Player extends
   /**
    * {@inheritDoc}
    *
+   *
    * @apiNote <b>This method is not currently implemented in Velocity
    *     and will not perform any actions.</b>
    * @see #playSound(Sound, Sound.Emitter)
    * @see <a href="https://docs.papermc.io/velocity/dev/pitfalls/#audience-operations-are-not-fully-supported">
-   *     Unsupported Adventure Operations</a>
+   *   Unsupported Adventure Operations</a>
    */
   @Override
   default void playSound(@NotNull Sound sound) {
@@ -403,7 +413,7 @@ public interface Player extends
    *     and will not perform any actions.</b>
    * @see #playSound(Sound, Sound.Emitter)
    * @see <a href="https://docs.papermc.io/velocity/dev/pitfalls/#audience-operations-are-not-fully-supported">
-   *     Unsupported Adventure Operations</a>
+   *   Unsupported Adventure Operations</a>
    */
   @Override
   default void playSound(@NotNull Sound sound, double x, double y, double z) {
@@ -446,7 +456,7 @@ public interface Player extends
    * and will not perform any actions.</b>
    *
    * @see <a href="https://docs.papermc.io/velocity/dev/pitfalls/#audience-operations-are-not-fully-supported">
-   *     Unsupported Adventure Operations</a>
+   *   Unsupported Adventure Operations</a>
    */
   @Override
   default void openBook(@NotNull Book book) {
@@ -459,7 +469,7 @@ public interface Player extends
    * and will not perform any actions.</b>
    *
    * @see <a href="https://docs.papermc.io/velocity/dev/pitfalls/#audience-operations-are-not-fully-supported">
-   *     Unsupported Adventure Operations</a>
+   *   Unsupported Adventure Operations</a>
    */
   @Override
   default void showDialog(@NotNull DialogLike dialog) {
@@ -472,7 +482,7 @@ public interface Player extends
    * and will not perform any actions.</b>
    *
    * @see <a href="https://docs.papermc.io/velocity/dev/pitfalls/#audience-operations-are-not-fully-supported">
-   *     Unsupported Adventure Operations</a>
+   *   Unsupported Adventure Operations</a>
    */
   @Override
   default void closeDialog() {
