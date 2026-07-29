@@ -51,8 +51,6 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.MessageDigest;
 import java.util.Arrays;
-// 网易版新增以下 1 行代码
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import net.kyori.adventure.text.Component;
@@ -67,14 +65,10 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 public class InitialLoginSessionHandler implements MinecraftSessionHandler {
 
   private static final Logger logger = LogManager.getLogger(InitialLoginSessionHandler.class);
-  // 网易版修改以下 3 行
-  private static final String MOJANG_HASJOINED_URL = System.getProperty("mojang.sessionserver",
-      "https://sessionserver.mojang.com/session/minecraft/hasJoined")
-      .concat("?username=%s&serverId=%s");
-  // 网易版新增以下 3 行
-  private static final String NETEASE_HASJOINED_URL = System.getProperty("netease.sessionserver", "");
-  private static final String NETEASE_GAME_ID = System.getProperty("netease.gameid", "");
-  private static final boolean USE_NETEASE_VERIFY = !NETEASE_HASJOINED_URL.isEmpty();
+  private static final String MOJANG_HASJOINED_URL =
+      System.getProperty("mojang.sessionserver",
+              "https://sessionserver.mojang.com/session/minecraft/hasJoined")
+          .concat("?username=%s&serverId=%s");
 
   private final VelocityServer server;
   private final MinecraftConnection mcConnection;
@@ -207,41 +201,30 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
       byte[] decryptedSharedSecret = decryptRsa(serverKeyPair, packet.getSharedSecret());
       String serverId = generateServerId(decryptedSharedSecret, serverKeyPair.getPublic());
 
-      // 网易版新增以下 15 行
-      String url;
-      final HttpRequest httpRequest;
+      String playerIp = ((InetSocketAddress) mcConnection.getRemoteAddress()).getHostString();
+      final String userAgent =
+          server.getVersion().getName() + "/" + server.getVersion().getVersion();
 
-      if (USE_NETEASE_VERIFY) {
-        url = NETEASE_HASJOINED_URL;
-        HasJoinedRequest data = new HasJoinedRequest(login.getUsername(), serverId, NETEASE_GAME_ID);
-        String content = GENERAL_GSON.toJson(data);
-        httpRequest = HttpRequest.newBuilder()
-            .setHeader("User-Agent",
-                server.getVersion().getName() + "/" + server.getVersion().getVersion())
-            .headers("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(content))
-            .uri(URI.create(url))
-            .build();
+      final HttpRequest httpRequest;
+      if (NeteaseAuthentication.isEnabled()) {
+        // 网易的验证服务器不接受查询参数，改为提交 JSON 请求体。
+        httpRequest =
+            NeteaseAuthentication.createHasJoinedRequest(userAgent, login.getUsername(), serverId);
       } else {
-        // 网易版修改以下 3 行
-        String playerIp = ((InetSocketAddress) mcConnection.getRemoteAddress()).getHostString();
-        url = String.format(MOJANG_HASJOINED_URL,
+        String url = String.format(MOJANG_HASJOINED_URL,
             urlFormParameterEscaper().escape(login.getUsername()), serverId);
 
-        // 网易版修改以下 3 行
         if (server.getConfiguration().shouldPreventClientProxyConnections()) {
           url += "&ip=" + urlFormParameterEscaper().escape(playerIp);
         }
 
-        // 网易版修改以下 5 行
         httpRequest = HttpRequest.newBuilder()
-                .setHeader("User-Agent",
-                        server.getVersion().getName() + "/" + server.getVersion().getVersion())
+                .setHeader("User-Agent", userAgent)
                 .uri(URI.create(url))
                 .build();
-        // 网易版新增以下 2 行
       }
 
+      //noinspection resource
       final HttpClient httpClient = server.createHttpClient();
       httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
           .whenCompleteAsync((response, throwable) -> {
@@ -269,18 +252,17 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
             }
 
             if (response.statusCode() == 200) {
-              // 网易版修改以下 11 行
-              final GameProfile profile;
-
-              if (USE_NETEASE_VERIFY) {
-                com.google.gson.JsonObject dataJson = com.google.gson.JsonParser.parseString(response.body())
-                    .getAsJsonObject();
-                String id = dataJson.get("entity").getAsJsonObject().get("id").getAsString();
-                profile = new GameProfile(id, login.getUsername(), List.of(new GameProfile.Property("", "", "")));
-              } else {
-                profile = GENERAL_GSON.fromJson(response.body(), GameProfile.class);
+              final GameProfile profile = NeteaseAuthentication.isEnabled()
+                  ? NeteaseAuthentication.parseHasJoinedResponse(response.body(),
+                      login.getUsername())
+                  : GENERAL_GSON.fromJson(response.body(), GameProfile.class);
+              if (profile == null) {
+                logger.error("Unable to parse the session server response for {} ({})",
+                    login.getUsername(), playerIp);
+                inbound.disconnect(
+                    Component.translatable("multiplayer.disconnect.authservers_down"));
+                return;
               }
-
               // Not so fast, now we verify the public key for 1.19.1+
               if (inbound.getIdentifiedKey() != null
                   && inbound.getIdentifiedKey().getKeyRevision() == IdentifiedKey.Revision.LINKED_V2
@@ -301,9 +283,7 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
               // Something else went wrong
               logger.error(
                   "Got an unexpected error code {} whilst contacting Mojang to log in {} ({})",
-                  // 网易版修改以下 2 行
-                  response.statusCode(), login.getUsername(),
-                  ((InetSocketAddress) mcConnection.getRemoteAddress()).getHostString());
+                  response.statusCode(), login.getUsername(), playerIp);
               inbound.disconnect(Component.translatable("multiplayer.disconnect.authservers_down"));
             }
           }, mcConnection.eventLoop())
@@ -353,18 +333,5 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
     LOGIN_PACKET_RECEIVED,
     ENCRYPTION_REQUEST_SENT,
     ENCRYPTION_RESPONSE_RECEIVED
-  }
-  // 网易版新增以下 12 行
-
-  private static class HasJoinedRequest {
-    private String username;
-    private String serverId;
-    private String gameId;
-
-    private HasJoinedRequest(String username, String serverId, String gameId) {
-      this.username = username;
-      this.serverId = serverId;
-      this.gameId = gameId;
-    }
   }
 }

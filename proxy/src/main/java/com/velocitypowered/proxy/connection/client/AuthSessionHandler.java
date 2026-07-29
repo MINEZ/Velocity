@@ -234,17 +234,7 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
 
         ServerLoginSuccessPacket success = new ServerLoginSuccessPacket();
         success.setUsername(player.getUsername());
-        // 网易版新增以下 5 行代码
-        GameProfile.Property property = player.getGameProfileProperties().get(0);
-
-        if (property != null && property.getName().isEmpty()) {
-          success.setProperties(null);
-        } else {
-          // 网易版修改以下 1 行代码
-          success.setProperties(player.getGameProfileProperties());
-          // 网易版新增以下 2 行代码
-        }
-
+        success.setProperties(player.getGameProfileProperties());
         success.setUuid(player.getUniqueId());
         if (inbound.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_26_2)) {
           success.setSessionId(server.getSessionId());
