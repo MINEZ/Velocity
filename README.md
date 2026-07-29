@@ -35,6 +35,24 @@ and you can configure it from there.
 Alternatively, you can get the proxy JAR from the [downloads](https://papermc.io/downloads/velocity)
 page.
 
+## 网易《我的世界：中国版》登录验证
+
+本分支在上游的基础上增加了对《我的世界：中国版》玩家登录验证的支持，通过以下两个系统属性启用：
+
+| 系统属性 | 说明 |
+| --- | --- |
+| `netease.sessionserver` | 网易验证服务器的完整地址。留空（默认值）时继续使用 Mojang 的正版验证。 |
+| `netease.gameid` | 网易开发者平台分配的游戏 ID。 |
+
+例如：
+
+```shell
+java -Dnetease.sessionserver=https://example.com/hasJoined -Dnetease.gameid=123456 -jar velocity.jar
+```
+
+启用后，代理端会在加密握手阶段改为向网易验证服务器提交 `hasJoined` 请求，并从响应中取出玩家的唯一 ID。
+由于网易不像 Mojang 那样回传皮肤、披风等材质属性，此时下发给客户端的档案不含任何属性。
+
 # Localisation
 
 Translations are handled using [Crowdin](https://papermc-io.crowdin.com/velocity).
