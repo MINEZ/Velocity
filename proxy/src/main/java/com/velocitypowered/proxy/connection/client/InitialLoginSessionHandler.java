@@ -202,28 +202,18 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
       String serverId = generateServerId(decryptedSharedSecret, serverKeyPair.getPublic());
 
       String playerIp = ((InetSocketAddress) mcConnection.getRemoteAddress()).getHostString();
-      final String userAgent =
-          server.getVersion().getName() + "/" + server.getVersion().getVersion();
+      String url = String.format(MOJANG_HASJOINED_URL,
+          urlFormParameterEscaper().escape(login.getUsername()), serverId);
 
-      final HttpRequest httpRequest;
-      if (NeteaseAuthentication.isEnabled()) {
-        // 网易的验证服务器不接受查询参数，改为提交 JSON 请求体。
-        httpRequest =
-            NeteaseAuthentication.createHasJoinedRequest(userAgent, login.getUsername(), serverId);
-      } else {
-        String url = String.format(MOJANG_HASJOINED_URL,
-            urlFormParameterEscaper().escape(login.getUsername()), serverId);
-
-        if (server.getConfiguration().shouldPreventClientProxyConnections()) {
-          url += "&ip=" + urlFormParameterEscaper().escape(playerIp);
-        }
-
-        httpRequest = HttpRequest.newBuilder()
-                .setHeader("User-Agent", userAgent)
-                .uri(URI.create(url))
-                .build();
+      if (server.getConfiguration().shouldPreventClientProxyConnections()) {
+        url += "&ip=" + urlFormParameterEscaper().escape(playerIp);
       }
 
+      final HttpRequest httpRequest = HttpRequest.newBuilder()
+              .setHeader("User-Agent",
+                      server.getVersion().getName() + "/" + server.getVersion().getVersion())
+              .uri(URI.create(url))
+              .build();
       //noinspection resource
       final HttpClient httpClient = server.createHttpClient();
       httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
@@ -252,17 +242,8 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
             }
 
             if (response.statusCode() == 200) {
-              final GameProfile profile = NeteaseAuthentication.isEnabled()
-                  ? NeteaseAuthentication.parseHasJoinedResponse(response.body(),
-                      login.getUsername())
-                  : GENERAL_GSON.fromJson(response.body(), GameProfile.class);
-              if (profile == null) {
-                logger.error("Unable to parse the session server response for {} ({})",
-                    login.getUsername(), playerIp);
-                inbound.disconnect(
-                    Component.translatable("multiplayer.disconnect.authservers_down"));
-                return;
-              }
+              final GameProfile profile = GENERAL_GSON.fromJson(response.body(),
+                  GameProfile.class);
               // Not so fast, now we verify the public key for 1.19.1+
               if (inbound.getIdentifiedKey() != null
                   && inbound.getIdentifiedKey().getKeyRevision() == IdentifiedKey.Revision.LINKED_V2
