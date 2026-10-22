@@ -1,10 +1,8 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: PaperMC Discord
+  - name: 上游文档
+    url: https://docs.papermc.io/velocity/
+    about: Velocity 本身的用法与配置。本 Fork 的改动见仓库的 README。
+  - name: 关于 Velocity 本身的问题
     url: https://discord.gg/papermc
-    about: If you are having issues with the proxy not connecting to servers or have other minor issues, come ask us on our Discord server!
-  - name: Exploit Report
-    url: https://discord.gg/papermc
-    about: |
-      Due to GitHub not currently allowing private issues, exploit reports are currently handled via our Discord.
-      To report an exploit, see the #paper-exploit-report channel.
+    about: 面向上游项目。请勿在那里提及本 Fork。

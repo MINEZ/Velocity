@@ -1,69 +1,65 @@
-name: Bug Report
-description: Report issues with Velocity not working properly.
+name: 问题反馈
+description: 本 Fork 的某项功能未按预期工作。
 labels: ["type: bug"]
 body:
-  - type: textarea
-    attributes:
-      label: Expected Behavior
-      description: What you expected to work and how.
-    validations:
-      required: true
-
-  - type: textarea
-    attributes:
-      label: Actual Behavior
-      description: What actually happens.
-    validations:
-      required: true
-
-  - type: textarea
-    attributes:
-      label: Steps to Reproduce
-      description: Information on how we can reproduce this bug on our own, this can be e.g. just an explanation, a video or your Velocity config.
-    validations:
-      required: true
-
-  - type: textarea
-    attributes:
-      label: Plugin List
-      description: |
-        All plugins running on your proxy and the backend server you're experiencing this issue on.
-        Use `/velocity plugins` to list plugins on Velocity and `/plugins` to list plugins on your backend server.
-    validations:
-      required: true
-
-  - type: textarea
-    attributes:
-      label: Velocity Version
-      description: |
-        The full, unmodified output of running `/velocity info`.
-        *"Latest"* is not a version. We require you to paste the text, not a screenshot.
-        <details>
-        <summary>Example</summary>
-        
-        ```
-        [17:44:10 INFO]: Velocity 3.3.0-SNAPSHOT (git-9d25d309-b400)  
-        [17:44:10 INFO]: Copyright 2018-2023 Velocity Contributors. Velocity is licensed under the terms of the GNU General Public License v3.  
-        [17:44:10 INFO]: PaperMC - GitHub  
-        ```
-        </details>
-    validations:
-      required: true
-
-  - type: textarea
-    attributes:
-      label: Additional Information
-      description: Anything else you think is helpful.
-    validations:
-      required: false
-
   - type: markdown
     attributes:
       value: |
-        Before submitting this issue, please ensure the following:
+        本仓库只受理 MINEZ Velocity Fork 的问题。
 
-        1. You are running the latest version of Velocity from [our downloads page](https://papermc.io/downloads/velocity).
-        2. You searched for and ensured there isn't already an open issue regarding this.
+        提交前请先在未经修改的上游构建上复现：若上游同样存在该问题，请照常向上游反馈，不必也不要提及本 Fork。
 
-        If you think you have a bug, but are not sure, feel free to ask in the `#velocity-help` channel on our
-        [Discord](https://discord.gg/papermc).
+  - type: textarea
+    attributes:
+      label: 预期行为
+      description: 你期望发生什么。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 实际行为
+      description: 实际发生了什么。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 复现步骤
+      description: 如何复现该问题，可以是文字说明、视频或你的 Velocity 配置。
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: 上游构建上能否复现
+      options:
+        - 不能，仅在本 Fork 上出现
+        - 尚未尝试
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Velocity 版本
+      description: |
+        执行 `/velocity info` 的完整输出，请粘贴文本而非截图。
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 插件列表
+      description: |
+        代理端与相关后端服务器上的全部插件。
+        代理端可用 `/velocity plugins` 列出，后端服务器可用 `/plugins` 列出。
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: 其他信息
+      description: 其他你认为有帮助的内容，例如相关日志。
+    validations:
+      required: false
