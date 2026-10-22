@@ -274,8 +274,10 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
             } else {
               // Something else went wrong
               logger.error(
-                  "Got an unexpected error code {} whilst contacting Mojang to log in {} ({})",
-                  response.statusCode(), login.getUsername(), playerIp);
+                  "Got an unexpected error code {} whilst contacting {} to log in {} ({})",
+                  response.statusCode(),
+                  NeteaseAuthentication.isEnabled() ? "NetEase" : "Mojang",
+                  login.getUsername(), playerIp);
               inbound.disconnect(Component.translatable("multiplayer.disconnect.authservers_down"));
             }
           }, mcConnection.eventLoop())
