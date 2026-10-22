@@ -2,6 +2,7 @@ plugins {
     `java-library`
     id("velocity-checkstyle") apply false
     id("velocity-spotless") apply false
+    id("minez-badges")
 }
 
 subprojects {
