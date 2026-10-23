@@ -68,10 +68,12 @@ git merge upstream/dev/4.0.0
 java -Dnetease.sessionserver=https://example.com/hasJoined -Dnetease.gameid=123456 -jar velocity.jar
 ```
 
-启用后，代理端在加密握手阶段不再向 Mojang 发出 `hasJoined` 查询，而是以 POST 方式向网易验证服务器提交一段 JSON 请求体，并从响应中取出玩家的唯一 ID。该开关作用于全部玩家，无法与 Mojang 的验证并存；离线模式下不进行正版验证，自然也不受其影响。另有两点需要留意：
+启用后，代理端在加密握手阶段不再向 Mojang 发出 `hasJoined` 查询，而是以 POST 方式向网易验证服务器提交一段 JSON 请求体，并从响应中取出玩家的唯一 ID。该开关作用于全部玩家，无法与 Mojang 的验证并存；离线模式下不进行正版验证，自然也不受其影响。另有几点需要留意：
 
+- 网易验证不通过时同样返回 200，只是响应体中的 `code` 不为 0。此时玩家会看到与 Mojang 验证不通过相同的提示“您尚未登录至 Minecraft 账户…”，控制台则会记录网易返回的 `code` 与 `message`，例如 `NetEase refused to authenticate <玩家名> (<IP>): code 7, 认证失败`。
 - 网易不像 Mojang 那样回传皮肤、披风等材质属性，此时下发给客户端与后端服务器的档案不含任何属性。
 - `prevent-client-proxy-connections` 依赖 Mojang 会话服务器对玩家 IP 的比对，网易验证下不起作用。
+- 以上设置只对本 Fork 的构建生效。上游的官方构建会静默忽略它们并照常向 Mojang 验证，网易玩家因此全部无法进入。可用 `/velocity info` 确认：本 Fork 的版本号有四段，形如 `4.3.0.2`。
 
 ## 构建
 
@@ -81,7 +83,7 @@ java -Dnetease.sessionserver=https://example.com/hasJoined -Dnetease.gameid=1234
 ./gradlew build
 ```
 
-运行 Gradle 需要 JDK 17 及以上版本；编译所需的 JDK 25 若本机没有，Gradle 会自动下载。产物位于 `proxy/build/libs/`，取其中带 `-all` 后缀的 JAR，形如 `velocity-proxy-4.3.0.1-all.jar`。首次运行会生成默认的配置文件，在此基础上修改即可。
+运行 Gradle 需要 JDK 17 及以上版本；编译所需的 JDK 25 若本机没有，Gradle 会自动下载。产物位于 `proxy/build/libs/`，取其中带 `-all` 后缀的 JAR，形如 `velocity-proxy-4.3.0.2-all.jar`。首次运行会生成默认的配置文件，在此基础上修改即可。
 
 构建时还会重新生成 `docs/badges/` 下的徽章，以反映当前的版本号与支持的 Minecraft 版本范围。徽章有变化时，请随代码一同提交。
 

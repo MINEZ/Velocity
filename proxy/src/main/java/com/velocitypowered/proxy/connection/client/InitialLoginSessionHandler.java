@@ -244,13 +244,27 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
             }
 
             if (response.statusCode() == 200) {
-              final GameProfile profile = NeteaseAuthentication.isEnabled()
-                  ? NeteaseAuthentication.parseHasJoinedResponse(response.body(),
-                      login.getUsername())
-                  : GENERAL_GSON.fromJson(response.body(), GameProfile.class);
+              final GameProfile profile;
+              if (NeteaseAuthentication.isEnabled()) {
+                final NeteaseAuthentication.HasJoinedResult result =
+                    NeteaseAuthentication.parseHasJoinedResponse(response.body(),
+                        login.getUsername());
+                if (result instanceof NeteaseAuthentication.Rejected rejected) {
+                  // 网易以 200 加非零 code 表示验证不通过，与 Mojang 返回 204 同义。
+                  logger.info("NetEase refused to authenticate {} ({}): code {}, {}",
+                      login.getUsername(), playerIp, rejected.code(), rejected.message());
+                  inbound.disconnect(Component.translatable("velocity.error.online-mode-only",
+                      NamedTextColor.RED));
+                  return;
+                }
+                profile = result instanceof NeteaseAuthentication.Authenticated authenticated
+                    ? authenticated.profile() : null;
+              } else {
+                profile = GENERAL_GSON.fromJson(response.body(), GameProfile.class);
+              }
               if (profile == null) {
-                logger.error("Unable to parse the session server response for {} ({})",
-                    login.getUsername(), playerIp);
+                logger.error("Unable to parse the session server response for {} ({}): {}",
+                    login.getUsername(), playerIp, response.body());
                 inbound.disconnect(
                     Component.translatable("multiplayer.disconnect.authservers_down"));
                 return;

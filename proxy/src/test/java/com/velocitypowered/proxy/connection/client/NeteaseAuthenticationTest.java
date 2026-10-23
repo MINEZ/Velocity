@@ -18,11 +18,13 @@
 package com.velocitypowered.proxy.connection.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.velocitypowered.api.util.GameProfile;
+import com.velocitypowered.proxy.connection.client.NeteaseAuthentication.Authenticated;
+import com.velocitypowered.proxy.connection.client.NeteaseAuthentication.Malformed;
+import com.velocitypowered.proxy.connection.client.NeteaseAuthentication.Rejected;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -38,10 +40,8 @@ class NeteaseAuthenticationTest {
       "069a79f4-44e9-4726-a5be-fca90e38aaf5"
   })
   void parsesBothUniqueIdForms(final String id) {
-    final GameProfile profile = NeteaseAuthentication.parseHasJoinedResponse(
-        "{\"entity\":{\"id\":\"" + id + "\"}}", "Steve");
+    final GameProfile profile = authenticate("{\"entity\":{\"id\":\"" + id + "\"}}");
 
-    assertNotNull(profile);
     assertEquals(UNIQUE_ID, profile.getId());
     // 网易不回传材质属性，名称取自客户端在登录包中提交的用户名。
     assertEquals("Steve", profile.getName());
@@ -50,12 +50,29 @@ class NeteaseAuthenticationTest {
 
   @Test
   void ignoresUnknownFields() {
-    final GameProfile profile = NeteaseAuthentication.parseHasJoinedResponse(
-        "{\"code\":0,\"entity\":{\"id\":\"069a79f444e94726a5befca90e38aaf5\",\"name\":\"x\"}}",
-        "Steve");
+    final GameProfile profile = authenticate(
+        "{\"code\":0,\"entity\":{\"id\":\"069a79f444e94726a5befca90e38aaf5\",\"name\":\"x\"}}");
 
-    assertNotNull(profile);
     assertEquals(UNIQUE_ID, profile.getId());
+  }
+
+  @Test
+  void reportsRejection() {
+    // 网易验证不通过时的实际响应。
+    final Rejected rejected = assertInstanceOf(Rejected.class,
+        NeteaseAuthentication.parseHasJoinedResponse(
+            "{\"code\":7,\"message\":\"认证失败\",\"details\":\"\",\"entity\":null}", "Steve"));
+
+    assertEquals(7, rejected.code());
+    assertEquals("认证失败", rejected.message());
+  }
+
+  @Test
+  void reportsRejectionWithoutMessage() {
+    final Rejected rejected = assertInstanceOf(Rejected.class,
+        NeteaseAuthentication.parseHasJoinedResponse("{\"code\":7}", "Steve"));
+
+    assertEquals("", rejected.message());
   }
 
   @ParameterizedTest
@@ -69,9 +86,15 @@ class NeteaseAuthenticationTest {
       "{\"entity\":{}}",
       "{\"entity\":{\"id\":\"\"}}",
       "{\"entity\":{\"id\":\"not-a-uuid\"}}",
-      "{\"entity\":{\"id\":\"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\"}}"
+      "{\"entity\":{\"id\":\"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\"}}",
+      "{\"code\":0,\"entity\":null}"
   })
   void rejectsMalformedResponses(final String body) {
-    assertNull(NeteaseAuthentication.parseHasJoinedResponse(body, "Steve"));
+    assertInstanceOf(Malformed.class, NeteaseAuthentication.parseHasJoinedResponse(body, "Steve"));
+  }
+
+  private static GameProfile authenticate(final String body) {
+    return assertInstanceOf(Authenticated.class,
+        NeteaseAuthentication.parseHasJoinedResponse(body, "Steve")).profile();
   }
 }

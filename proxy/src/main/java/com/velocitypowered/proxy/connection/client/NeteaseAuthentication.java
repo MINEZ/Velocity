@@ -90,24 +90,65 @@ final class NeteaseAuthentication {
    * 因此这里构造出的档案不含任何属性。属性列表为空时，登录成功包中写入的属性数量为 0，
    * 与不下发属性的效果一致。</p>
    *
+   * <p>与 Mojang 以 204 表示查无加入记录不同，网易在验证不通过时同样返回 200，
+   * 只是响应体中的 {@code code} 不为 0，形如
+   * {@code {"code":7,"message":"认证失败","details":"","entity":null}}。</p>
+   *
    * @param body the response body
    * @param username the username announced by the client in its login packet
-   * @return the parsed game profile, or {@code null} if the response could not be parsed
+   * @return the outcome of the authentication
    */
-  static @Nullable GameProfile parseHasJoinedResponse(final String body, final String username) {
+  static HasJoinedResult parseHasJoinedResponse(final String body, final String username) {
     final HasJoinedResponse response;
     try {
       response = GENERAL_GSON.fromJson(body, HasJoinedResponse.class);
     } catch (final RuntimeException e) {
-      return null;
+      return new Malformed();
     }
 
-    if (response == null || response.entity == null || response.entity.id == null) {
-      return null;
+    if (response == null) {
+      return new Malformed();
+    }
+    if (response.code != null && response.code != 0) {
+      return new Rejected(response.code, response.message == null ? "" : response.message);
+    }
+    if (response.entity == null || response.entity.id == null) {
+      return new Malformed();
     }
 
     final UUID uniqueId = parseUniqueId(response.entity.id);
-    return uniqueId == null ? null : new GameProfile(uniqueId, username, List.of());
+    return uniqueId == null
+        ? new Malformed()
+        : new Authenticated(new GameProfile(uniqueId, username, List.of()));
+  }
+
+  /**
+   * The outcome of a {@code hasJoined} request against the NetEase session server.
+   */
+  sealed interface HasJoinedResult permits Authenticated, Rejected, Malformed {
+  }
+
+  /**
+   * The player has been authenticated.
+   *
+   * @param profile the profile to log the player in with
+   */
+  record Authenticated(GameProfile profile) implements HasJoinedResult {
+  }
+
+  /**
+   * The session server has refused to authenticate the player.
+   *
+   * @param code the error code returned by the session server
+   * @param message the error message returned by the session server
+   */
+  record Rejected(int code, String message) implements HasJoinedResult {
+  }
+
+  /**
+   * The response could not be understood.
+   */
+  record Malformed() implements HasJoinedResult {
   }
 
   // 兼容带连字符与不带连字符两种写法的 UUID。
@@ -133,9 +174,11 @@ final class NeteaseAuthentication {
     }
   }
 
-  // 网易验证服务器的响应体，形如 {"entity": {"id": "..."}}。
+  // 网易验证服务器的响应体，形如 {"code": 0, "message": "...", "entity": {"id": "..."}}。
   private static final class HasJoinedResponse {
 
+    private @Nullable Integer code;
+    private @Nullable String message;
     private @Nullable Entity entity;
 
     private static final class Entity {
